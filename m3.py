@@ -1,9 +1,43 @@
-# ===== JANVIER =====
 
 import pandas as pd
 import numpy as np
 
+def charger(chemin, sep=",", encoding="utf-8", skiprows=0):
+    return pd.read_csv(chemin,sep=sep,encoding=encoding,skiprows=skiprows)
 
+def nettoyer(df, renommage, format_date):
+    df = df.rename(columns=renommage)
+    df = df.drop(columns="a_supprimer", errors="ignore")
+    df = df[df["date"] != "TOTAL"]
+    df["canal"] = df["canal"].str.strip().str.lower()
+    df = df.drop_duplicates()
+    df["depenses"] = df["depenses"].astype(str).str.replace(" ","").str.replace(",",".").str.replace("€","")
+    df["depenses"] = pd.to_numeric(df["depenses"],errors="coerce")
+    df["date"] = pd.to_datetime(df["date"],format=format_date)
+    return df
+
+
+RENOMMAGE_JANVIER = {"Date":"date","Canal ":"canal","Dépenses (€)":"depenses","Clics":"clics","Conversions":"conversions","Unnamed: 5":"a_supprimer"}
+RENOMMAGE_FEVRIER = {"channel":"canal","spend":"depenses","clicks":"clics"}
+RENOMMAGE_MARS = {"Canal": "canal", "Jour": "date", "Conversions": "conversions", "Clics": "clics", "Budget dépensé": "depenses"}
+
+
+
+janvier = nettoyer(charger("donnees/export_janvier.csv", sep=";", encoding="cp1252", skiprows=2), RENOMMAGE_JANVIER, "%d/%m/%Y")
+print("---------------Janvier propre---------------")
+print(janvier)
+
+fevrier = nettoyer(charger("donnees/export_fevrier.csv", sep=","), RENOMMAGE_FEVRIER, "%Y-%m-%d")
+print("---------------Fevrier propre---------------")
+print(fevrier)
+
+mars = nettoyer(charger("donnees/export_mars.csv", sep="\t"), RENOMMAGE_MARS, "%d/%m/%Y")
+print("---------------Mars propre---------------")
+print(mars)
+
+
+# ===== JANVIER =====
+"""
 #import + encoding + séparateur + skpi rows
 janvier = pd.read_csv("donnees/export_janvier.csv",encoding="cp1252",sep=";",skiprows=2)
 
@@ -13,19 +47,11 @@ janvier = janvier.drop(columns="Unnamed: 5")
 #enlever ligne total
 janvier = janvier[janvier["Date"] != "TOTAL"]
 
-#janvier.info()
-
-
-#print(janvier.duplicated().sum())
-#print(janvier[janvier.duplicated(keep=False)])
-
 #enlever doublons
 janvier = janvier.drop_duplicates()
 
 #vérifier que les doublons ont disparu
 #print(janvier.duplicated().sum())
-
-
 
 #Index(['Date', 'Canal ', 'Dépenses (€)', 'Clics', 'Conversions'], dtype='str')
 
@@ -98,15 +124,6 @@ mars["date"] = pd.to_datetime(mars["date"],format="%d/%m/%Y")
 #Export to clean csv
 mars.to_csv("sorties/mars_propre.csv",index=False)
 
-"""
-print("----------Mars Cleané----------")
-print(mars)
-
-print("----------Mars Info----------")
-mars.info()
-"""
-
-
 # ===== CONSOLIDATION  =====
 
 
@@ -118,9 +135,9 @@ print(total)
 
 total["cout_par_conversion"] = (total["depenses"] / total["conversions"]).round(2)
 
-
 par_canal = total.groupby("canal").agg(
 {"depenses": "sum", "clics": "sum", "conversions":"sum"}
 ).reset_index()
 
 print(par_canal)
+"""
