@@ -39,36 +39,53 @@ CONFIGS = {
         "renommage": RENOMMAGE_MARS,
         "format_date": "%d/%m/%Y",
     },
-    "export_avril.csv": {
-    "sep": "\t",
-    "renommage": RENOMMAGE_MARS,
-    "format_date": "%d/%m/%Y",
-    },
 
 }
+
+echecs = 0
 
 dataframes = []
 
 for chemin in sorted(Path("donnees").glob("*.csv")):
-    config = CONFIGS[chemin.name]
-    df = charger(chemin, sep=config.get("sep", ","), encoding=config.get("encoding", "utf-8"), skiprows=config.get("skiprows", 0))
-    df = nettoyer(df, config["renommage"], config["format_date"])
-    dataframes.append(df)
+    try:
+        config = CONFIGS[chemin.name]
+        df = charger(chemin, sep=config.get("sep", ","), encoding=config.get("encoding", "utf-8"), skiprows=config.get("skiprows", 0))
+        df = nettoyer(df, config["renommage"], config["format_date"])
+        dataframes.append(df)
+    except Exception as e:
+        print(f"Erreur sur {chemin.name} : {type(e).__name__} - {e}")
+        echecs = echecs + 1
+
+print(f"Fichiers traités : {len(dataframes)} | Echecs : {echecs}")      
 
 total = pd.concat(dataframes, ignore_index=True)
+
+# ===== RAPPORT QUALITE =====
+
+print("===== RAPPORT QUALITE =====")
+print(f"Nombre de lignes : {len(total)}")
+
+print(total.isna().sum())
+
+print(total[total.isna().any(axis=1)])
 
 # ===== CONSOLIDATION  =====
 total["cout_par_conversion"] = (total["depenses"] / total["conversions"]).round(2)
 
-print("----------Total----------")
+total = total.sort_values("date")
+
+print("===== CONSOLIDATION  =====")
 print(total)
-
-
 
 par_canal = total.groupby("canal").agg(
 {"depenses": "sum", "clics": "sum", "conversions":"sum"}
 ).reset_index()
 
-print("----------Canal----------")
+print("===== VUE PAR CANAL  =====")
 print(par_canal)
 
+# ===== EXPORT  =====
+
+total.to_csv("sorties/consolidation_propre.csv", index=False)
+print("===== EXPORT  =====")
+print(f"Export terminé : sorties/consolide.csv — {len(total)} lignes")
